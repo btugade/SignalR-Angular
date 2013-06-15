@@ -1,0 +1,70 @@
+﻿@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section head{
+    <script src="~/Scripts/jquery-1.8.3.min.js"></script>
+    <script src="~/Scripts/jquery.signalR-1.1.2.min.js"></script>
+    <script src="~/signalr/hubs"></script>
+    <script src="~/Scripts/angular.min.js"></script>
+}
+
+<h2>Index</h2>
+<div ng-app="testApp">
+    <div ng-controller="testCtrl">
+        <input type="text" id="txt" placeholder="enter your text here" ng-model="txt" />
+        <input type="button" id="btn" value="push" ng-click="send()" /><br />
+        <br />
+        <ul ng-repeat="message in messages">
+            <li>{{message}}</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    var testApp = angular.module('testApp', []);
+    testApp.value('$', $);
+    var testCtrl = function ($scope, hubProxy) {
+        $scope.messages = [];
+        $scope.send = function () {
+            hubProxy.sendMessage($scope.txt.toString());
+        };
+        $scope.$on('receiveMessageResponse', function (event, message) {
+            $scope.$apply(function () {
+                $scope.messages.push(message);
+            });
+        });
+
+        hubProxy.intializeClient();
+    };
+
+    testApp.factory('hubProxy', ['$', '$rootScope', function($, $rootScope) {
+        var hubProxy = {
+            connection: null,
+            proxy: null,
+            intializeClient: function () {
+                hubProxy.connection = $.hubConnection();
+                hubProxy.proxy = hubProxy.connection.createHubProxy('chatHub');
+                hubProxy.configureClientFuntions();
+                hubProxy.start();
+            },
+            configureClientFuntions: function () {
+                hubProxy.proxy.on('receive', function (message) {
+                    $rootScope.$broadcast('receiveMessageResponse', message);
+                });
+            },
+            start: function () {
+                //starting the connection and initializing market             
+                hubProxy.connection.start();
+            },
+            sendMessage: function (message) {
+                hubProxy.proxy.invoke('send', message);
+            },
+            reset: function () {
+                hubProxy.proxy.invoke('reset');
+            }
+        };
+        return hubProxy;
+    }]);
+</script>
